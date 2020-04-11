@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Reddit.Controllers;
+using System;
+using System.Collections.Generic;
 
 namespace RedditArchiver
 {
@@ -9,6 +11,11 @@ namespace RedditArchiver
         static void Main(string[] args)
         {
             _account = ConfigureAccount();
+            List<Post> posts = _account.GetAllSavedPosts();
+            foreach (var post in posts)
+            {
+                Console.WriteLine(post.Fullname + post.Title);
+            }
         }
 
         private static Account ConfigureAccount()
