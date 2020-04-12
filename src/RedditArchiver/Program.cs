@@ -1,5 +1,6 @@
 ﻿using Reddit.Controllers;
 using RedditArchiver.Data;
+using RedditArchiver.Models;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -19,8 +20,19 @@ namespace RedditArchiver
 
             var stopwatch = new Stopwatch();
             stopwatch.Start();
-            List<Post> posts = _account.GetAllSavedPosts();
+
+            PostDTO latestSaved = await _database.GetLatestSavedPostAsync();
+            List<Post> posts = new List<Post>();
+            if (latestSaved != null)
+            {
+                posts = _account.GetSavedPostsBefore(latestSaved.Fullname);
+            }
+            else
+            {
+                posts = _account.GetAllSavedPosts();
+            }
             await _database.SavePostsAsync(posts);
+
             stopwatch.Stop();
             Console.WriteLine($"Added {posts.Count} new posts to the database. Took {stopwatch.Elapsed.TotalSeconds} seconds.");
         }
