@@ -1,21 +1,28 @@
 ﻿using Reddit.Controllers;
+using RedditArchiver.Data;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace RedditArchiver
 {
     class Program
     {
         private static Account _account;
+        private static IDataStore _database;
 
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             _account = ConfigureAccount();
+            _database = new SqlLiteDataStore();
+
+            var stopwatch = new Stopwatch();
+            stopwatch.Start();
             List<Post> posts = _account.GetAllSavedPosts();
-            foreach (var post in posts)
-            {
-                Console.WriteLine(post.Fullname + post.Title);
-            }
+            await _database.SavePostsAsync(posts);
+            stopwatch.Stop();
+            Console.WriteLine($"Added {posts.Count} new posts to the database. Took {stopwatch.Elapsed.TotalSeconds} seconds.");
         }
 
         private static Account ConfigureAccount()
