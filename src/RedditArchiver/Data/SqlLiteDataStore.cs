@@ -11,9 +11,9 @@ namespace RedditArchiver.Data
     {
         private readonly SQLiteAsyncConnection db;
 
-        public SqlLiteDataStore()
+        public SqlLiteDataStore(ConnectionStrings connectionStrings)
         {
-            db = new SQLiteAsyncConnection("savedPosts.db", SQLiteOpenFlags.Create | SQLiteOpenFlags.ReadWrite);
+            db = new SQLiteAsyncConnection(connectionStrings.SqliteLocation, SQLiteOpenFlags.Create | SQLiteOpenFlags.ReadWrite);
             db.CreateTableAsync<PostDTO>().Wait();
         }
 

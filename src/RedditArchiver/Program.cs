@@ -1,4 +1,5 @@
-﻿using Reddit.Controllers;
+﻿using Microsoft.Extensions.Configuration;
+using Reddit.Controllers;
 using RedditArchiver.Data;
 using RedditArchiver.Models;
 using System;
@@ -15,8 +16,19 @@ namespace RedditArchiver
 
         static async Task Main(string[] args)
         {
-            _account = ConfigureAccount();
-            _database = new SqlLiteDataStore();
+            IConfiguration config = new ConfigurationBuilder()
+                .AddJsonFile("appsettings.json", false, true)
+                .AddUserSecrets<Program>()
+                .AddEnvironmentVariables("REDDIT_ARCHIVER_")
+                .AddCommandLine(args)
+                .Build();
+            var redditSettings = new RedditSettings();
+            config.Bind("Reddit", redditSettings);
+            var connStrings = new ConnectionStrings();
+            config.Bind("ConnectionStrings", connStrings);
+
+            _account = ConfigureAccount(redditSettings);
+            _database = new SqlLiteDataStore(connStrings);
 
             var stopwatch = new Stopwatch();
             stopwatch.Start();
@@ -37,14 +49,10 @@ namespace RedditArchiver
             Console.WriteLine($"Added {posts.Count} new posts to the database. Took {stopwatch.Elapsed.TotalSeconds} seconds.");
         }
 
-        private static Account ConfigureAccount()
+        private static Account ConfigureAccount(RedditSettings settings)
         {
-            string appId = Environment.GetEnvironmentVariable("REDDIT_ARCHIVER_APPID");
-            string accessToken = Environment.GetEnvironmentVariable("REDDIT_ARCHIVER_ACCESSTOKEN");
-            string refreshToken = Environment.GetEnvironmentVariable("REDDIT_ARCHIVER_REFRESHTOKEN");
-            string userAgent = Environment.GetEnvironmentVariable("REDDIT_ARCHIVER_USERAGENT");
-
-            return new Account(appId, accessToken, refreshToken, userAgent);
+            return new Account(settings.AppID, settings.AccessToken,
+                settings.RefreshToken, settings.RefreshToken);
         }
     }
 }
