@@ -1,58 +1,36 @@
 ﻿using Microsoft.Extensions.Configuration;
-using Reddit.Controllers;
+using Microsoft.Extensions.DependencyInjection;
 using RedditArchiver.Data;
 using RedditArchiver.Models;
+using RedditArchiver.Services;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Threading.Tasks;
 
 namespace RedditArchiver
 {
     class Program
     {
-        private static Account _account;
-        private static IDataStore _database;
-
         static async Task Main(string[] args)
         {
+            // Load config
             IConfiguration config = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json", false, true)
                 .AddUserSecrets<Program>()
                 .AddEnvironmentVariables("REDDIT_ARCHIVER_")
                 .AddCommandLine(args)
                 .Build();
-            var redditSettings = new RedditSettings();
-            config.Bind("Reddit", redditSettings);
-            var connStrings = new ConnectionStrings();
-            config.Bind("ConnectionStrings", connStrings);
 
-            _account = ConfigureAccount(redditSettings);
-            _database = new SqlLiteDataStore(connStrings);
+            // Configure services
+            IServiceProvider services = new ServiceCollection()
+                .Configure<RedditSettings>(o => config.Bind("Reddit", o))
+                .Configure<ConnectionStrings>(o => config.Bind("ConnectionStrings", o))
+                .AddTransient<IDataStore, SqlLiteDataStore>()
+                .AddTransient<IAccount, Account>()
+                .AddSingleton<Archiver>()
+                .BuildServiceProvider();
 
-            var stopwatch = new Stopwatch();
-            stopwatch.Start();
-
-            PostDTO latestSaved = await _database.GetLatestSavedPostAsync();
-            List<Post> posts = new List<Post>();
-            if (latestSaved != null)
-            {
-                posts = _account.GetSavedPostsBefore(latestSaved.Fullname);
-            }
-            else
-            {
-                posts = _account.GetAllSavedPosts();
-            }
-            await _database.SavePostsAsync(posts);
-
-            stopwatch.Stop();
-            Console.WriteLine($"Added {posts.Count} new posts to the database. Took {stopwatch.Elapsed.TotalSeconds} seconds.");
-        }
-
-        private static Account ConfigureAccount(RedditSettings settings)
-        {
-            return new Account(settings.AppID, settings.AccessToken,
-                settings.RefreshToken, settings.RefreshToken);
+            // Run program
+            await services.GetRequiredService<Archiver>().Run();
         }
     }
 }

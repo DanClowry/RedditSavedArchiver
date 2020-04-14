@@ -1,25 +1,25 @@
-﻿using Reddit;
+﻿using Microsoft.Extensions.Options;
+using Reddit;
 using Reddit.Controllers;
+using RedditArchiver.Models;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace RedditArchiver
+namespace RedditArchiver.Services
 {
-    public class Account
+    public class Account : IAccount
     {
         private RedditClient _client;
 
-        public Account(string appId, string accessToken, string refreshToken, string userAgent)
+        public Account(IOptions<RedditSettings> options)
         {
-            _client = new RedditClient(appId: appId, accessToken: accessToken,
-                refreshToken: refreshToken, userAgent: userAgent);
+            var settings = options.Value;
+            _client = new RedditClient(appId: settings.AppID,
+                accessToken: settings.AccessToken,
+                refreshToken: settings.RefreshToken,
+                userAgent: settings.UserAgent);
         }
 
-        /// <summary>
-        /// Gets all saved posts for the current user's account.
-        /// </summary>
-        /// <remarks>Does not include saved comments</remarks>
-        /// <returns>A list of posts the user has saved.</returns>
         public List<Post> GetAllSavedPosts()
         {
             List<Post> savedPosts = new List<Post>();
@@ -36,13 +36,6 @@ namespace RedditArchiver
             return savedPosts;
         }
 
-        /// <summary>
-        /// Gets all the posts the user has saved after another post.
-        /// </summary>
-        /// <param name="beforeName">The fullname of the post to use as an anchor point (exclusive). Will only return posts saved later than the anchor post.</param>
-        /// <remarks>Fetches all the user's saved posts if the anchor point is not one of the most recent 100 saved posts.
-        /// The post used as an anchor point is not included in the returned list of posts.</remarks>
-        /// <returns>A list of posts the user has saved. Returns an empty list if the anchor point does not exist in the user's saved posts.</returns>
         public List<Post> GetSavedPostsBefore(string beforeName)
         {
             List<Post> savedPosts = _client.Account.Me.GetPostHistory("saved", limit: 100, before: beforeName);

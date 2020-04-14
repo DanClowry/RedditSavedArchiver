@@ -1,4 +1,5 @@
-﻿using Reddit.Controllers;
+﻿using Microsoft.Extensions.Options;
+using Reddit.Controllers;
 using RedditArchiver.Models;
 using SQLite;
 using System.Collections.Generic;
@@ -11,9 +12,9 @@ namespace RedditArchiver.Data
     {
         private readonly SQLiteAsyncConnection db;
 
-        public SqlLiteDataStore(ConnectionStrings connectionStrings)
+        public SqlLiteDataStore(IOptions<ConnectionStrings> connectionStrings)
         {
-            db = new SQLiteAsyncConnection(connectionStrings.SqliteLocation, SQLiteOpenFlags.Create | SQLiteOpenFlags.ReadWrite);
+            db = new SQLiteAsyncConnection(connectionStrings.Value.SqliteLocation, SQLiteOpenFlags.Create | SQLiteOpenFlags.ReadWrite);
             db.CreateTableAsync<PostDTO>().Wait();
         }
 
