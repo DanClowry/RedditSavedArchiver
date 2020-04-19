@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace RedditArchiver.Services
 {
-    public interface IAccount
+    public interface IUserAccount
     {
         /// <summary>
         /// Gets all saved posts for the current user's account.

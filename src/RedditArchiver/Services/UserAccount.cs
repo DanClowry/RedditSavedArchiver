@@ -1,24 +1,19 @@
 ﻿using Microsoft.Extensions.Options;
-using Reddit;
 using Reddit.Controllers;
 using RedditArchiver.Models;
 using System.Collections.Generic;
 using System.Linq;
+using static RedditArchiver.Models.RedditSettings;
 
 namespace RedditArchiver.Services
 {
-    public class Account : IAccount
+    public class UserAccount : BaseAccount, IUserAccount
     {
-        private RedditClient _client;
+        public UserAccount(IOptions<RedditSettings> options, IOptions<Credentials> credentials)
+            : this(options, credentials.Value) { }
 
-        public Account(IOptions<RedditSettings> options)
-        {
-            var settings = options.Value;
-            _client = new RedditClient(appId: settings.AppID,
-                accessToken: settings.AccessToken,
-                refreshToken: settings.RefreshToken,
-                userAgent: settings.UserAgent);
-        }
+        public UserAccount(IOptions<RedditSettings> options, Credentials credentials)
+            : base(options.Value, credentials) { }
 
         public List<Post> GetAllSavedPosts()
         {

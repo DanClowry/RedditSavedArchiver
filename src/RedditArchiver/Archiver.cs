@@ -1,4 +1,5 @@
-﻿using Reddit.Controllers;
+﻿using Microsoft.Extensions.Options;
+using Reddit.Controllers;
 using RedditArchiver.Data;
 using RedditArchiver.Models;
 using RedditArchiver.Services;
@@ -12,12 +13,19 @@ namespace RedditArchiver
     public class Archiver
     {
         private readonly IDataStore _database;
-        private readonly IAccount _account;
+        private readonly IUserAccount _userAccount;
+        private readonly IBotAccount _botAccount;
+        private readonly RedditSettings _settings;
 
-        public Archiver(IDataStore dataStore, IAccount account)
+        public Archiver(IDataStore dataStore, IUserAccount userAccount, IOptions<RedditSettings> settings)
+            : this(dataStore, userAccount, null, settings) { }
+
+        public Archiver(IDataStore dataStore, IUserAccount userAccount, IBotAccount botAccount, IOptions<RedditSettings> settings)
         {
             _database = dataStore;
-            _account = account;
+            _userAccount = userAccount;
+            _botAccount = botAccount;
+            _settings = settings.Value;
         }
 
         public async Task Run()
@@ -29,16 +37,42 @@ namespace RedditArchiver
             List<Post> posts = new List<Post>();
             if (latestSaved != null)
             {
-                posts = _account.GetSavedPostsBefore(latestSaved.Fullname);
+                posts = _userAccount.GetSavedPostsBefore(latestSaved.Fullname);
             }
             else
             {
-                posts = _account.GetAllSavedPosts();
+                posts = _userAccount.GetAllSavedPosts();
             }
-            await _database.SavePostsAsync(posts);
-
+            posts.Reverse();
             stopwatch.Stop();
-            Console.WriteLine($"Added {posts.Count} new posts to the database. Took {stopwatch.Elapsed.TotalSeconds} seconds.");
+            Console.WriteLine($"Got {posts.Count} newly saved posts from Reddit API. Took {stopwatch.Elapsed.TotalSeconds} seconds.");
+            stopwatch.Restart();
+
+            Crosspost(posts);
+            Console.WriteLine($"Crossposted {posts.Count} posts to {_settings.Crosspost.CrosspostSubreddit}. Took {stopwatch.Elapsed.TotalSeconds} seconds.");
+            stopwatch.Restart();
+
+            await _database.SavePostsAsync(posts, reverse: false);
+            stopwatch.Stop();
+            Console.WriteLine($"Added {posts.Count} posts to the database. Took {stopwatch.Elapsed.TotalSeconds} seconds.");
+        }
+
+        private void Crosspost(List<Post> posts)
+        {
+            if (_botAccount != null)
+            {
+                string crosspostSub = _settings.Crosspost.CrosspostSubreddit;
+                if (!_botAccount.ModeratesSubreddit(crosspostSub))
+                {
+                    Console.WriteLine("Bot account must be a moderator of the crosspost subreddit.");
+                    return;
+                }
+
+                foreach (var post in posts)
+                {
+                    _botAccount.SubmitCrosspost(post, crosspostSub);
+                }
+            }
         }
     }
 }
