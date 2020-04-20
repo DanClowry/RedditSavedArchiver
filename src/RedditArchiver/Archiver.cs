@@ -48,30 +48,39 @@ namespace RedditArchiver
             Console.WriteLine($"Got {posts.Count} newly saved posts from Reddit API. Took {stopwatch.Elapsed.TotalSeconds} seconds.");
             stopwatch.Restart();
 
-            Crosspost(posts);
-            Console.WriteLine($"Crossposted {posts.Count} posts to {_settings.Crosspost.CrosspostSubreddit}. Took {stopwatch.Elapsed.TotalSeconds} seconds.");
-            stopwatch.Restart();
-
-            await _database.SavePostsAsync(posts, reverse: false);
-            stopwatch.Stop();
-            Console.WriteLine($"Added {posts.Count} posts to the database. Took {stopwatch.Elapsed.TotalSeconds} seconds.");
+            await ArchivePosts(posts);
         }
 
-        private void Crosspost(List<Post> posts)
+        private async Task ArchivePosts(List<Post> posts)
         {
+            var stopwatch = new Stopwatch();
+            stopwatch.Start();
             if (_botAccount != null)
             {
                 string crosspostSub = _settings.Crosspost.CrosspostSubreddit;
-                if (!_botAccount.ModeratesSubreddit(crosspostSub))
+                if (_botAccount.ModeratesSubreddit(crosspostSub))
+                {
+                    foreach (var post in posts)
+                    {
+                        List<Task> tasks = new List<Task>();
+                        tasks.Add(_botAccount.SubmitCrosspostAsync(post, crosspostSub));
+                        tasks.Add(_database.SavePostAsync(post));
+                        await Task.WhenAll(tasks);
+                        Console.WriteLine($"\"{post.Title}\" saved to database and crossposted to /r/{_settings.Crosspost.CrosspostSubreddit}");
+                    }
+                    stopwatch.Stop();
+                    Console.WriteLine($"\nSaved and crossposted {posts.Count} posts in {stopwatch.Elapsed.TotalSeconds:N0} seconds");
+                }
+                else
                 {
                     Console.WriteLine("Bot account must be a moderator of the crosspost subreddit.");
-                    return;
                 }
-
-                foreach (var post in posts)
-                {
-                    _botAccount.SubmitCrosspost(post, crosspostSub);
-                }
+            }
+            else
+            {
+                await _database.SavePostsAsync(posts, reverse: false);
+                stopwatch.Stop();
+                Console.WriteLine($"\nSaved {posts.Count} posts to the database in {stopwatch.Elapsed.TotalSeconds:N0} seconds");
             }
         }
     }
