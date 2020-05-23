@@ -1,10 +1,12 @@
-﻿namespace RedditArchiver.Models
+﻿using System.Reflection;
+
+namespace RedditArchiver.Models
 {
     public class RedditSettings
     {
         public Credentials UserCredentials { get; set; }
         public CrosspostSettings Crosspost { get; set; }
-        public string UserAgent { get; set; } = "windows:reddit-save-archiver:v0.1.0";
+        public string UserAgent { get; set; } = $"windows:reddit-save-archiver:v{Assembly.GetExecutingAssembly().GetName().Version}";
 
         public class Credentials
         {
