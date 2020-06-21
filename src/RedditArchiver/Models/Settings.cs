@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using System.Text.Json.Serialization;
 
 namespace RedditArchiver.Models
 {
@@ -8,13 +9,6 @@ namespace RedditArchiver.Models
         public CrosspostSettings Crosspost { get; set; }
         public string UserAgent { get; set; } = $"windows:reddit-save-archiver:v{Assembly.GetExecutingAssembly().GetName().Version}";
 
-        public class Credentials
-        {
-            public string AppID { get; set; }
-            public string AccessToken { get; set; }
-            public string RefreshToken { get; set; }
-        }
-
         public class CrosspostSettings
         {
             public bool EnableCrossposting { get; set; } = false;
@@ -22,6 +16,15 @@ namespace RedditArchiver.Models
             public bool UseUserAccount { get; set; } = false;
             public Credentials BotCredentials { get; set; }
         }
+    }
+
+    public class Credentials
+    {
+        public string AppID { get; set; }
+        [JsonPropertyName("access_token")]
+        public string AccessToken { get; set; }
+        [JsonPropertyName("refresh_token")]
+        public string RefreshToken { get; set; }
     }
 
     public class ConnectionStrings

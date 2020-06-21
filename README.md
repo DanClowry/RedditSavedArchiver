@@ -42,13 +42,12 @@ and click the "Create app" button at the bottom of the page.
 
 Fill out the new application form with the following information:
 
-* **Name:** Can be anything you want. "Saved Posts Archiver" recommended so you
-can quickly identify it
-* **App type:** Script
+* **Name:** Can be anything you want. "Saved Posts Archiver" is recommended so
+you can quickly identify it
+* **App type:** Installed app
 * **Description:** You can leave this blank
 * **About URL:** You can leave this blank
-* **Redirect URI:** MUST BE http://localhost:8080/Reddit.NET/oauthRedirect if
-you are using the AuthTokenRetriever program in the following steps
+* **Redirect URI:** MUST BE http://localhost:9696/redditArchiver/callback
 
 Once you have filled out the form click "Create app". The app should now appear
 under your developed applications. Make a note of the 15 character app ID
@@ -56,35 +55,31 @@ located under the app's name as this will be used in the later steps.
 
 #### Obtaining OAuth tokens
 
-*Note: AuthTokenRetriever is currently only available on Windows. I am planning
-to implement a cross-platform token retrieval method directly into the program.*
+When you first run the program, or when Reddit returns an unauthorised/forbidden
+response, the program will prompt you to run the credential setup.
 
-The fastest way to obtain OAuth tokens is by using AuthTokenRetriever. This is a
-program originally written by [Kris Craig](https://github.com/sirkris) as part
-of the [Reddit.NET](https://github.com/sirkris/Reddit.NET/) project. The version
-this repository hosts has been slightly modified to  limit the amount of account
-permissions the app requires.
+To obtain your OAuth tokens using the credential setup:
 
-To obtain your OAuth tokens using AuthTokenRetriever:
-
-1. Download the customised version of the token retriever from the
-[Github releases page](https://github.com/DanClowry/RedditSavedArchiver/releases).
-    * Alternatively you can download and build from the original source by cloning
-    the [Reddit.NET repsoitory](https://github.com/sirkris/Reddit.NET/).
-2. Run the program by double clicking on `AuthTokenRetriever.exe` or by calling
-`AuthTokenRetriever.exe` from a terminnal.
-3. The program will ask for the app ID. Enter the app ID you copied down when
+1. Run the program. It will automatically prompt you to run the user credential
+setup when Reddit returns an unauthorised/forbidden response (e.g. when you are
+using the default appsettings.json). Press "Y" to start the user-credential
+setup.
+2. The program will ask for an app ID. Enter the app ID you copied down when
 you [created the app](#creating-the-app).
-4. The program will ask for the app secret. Leave this blank and press enter.
-5. Make sure you are logged in to Reddit as the account you want to archive posts
-from. Press any key to open Reddit's authentication page.
-6. A page should now open in your browser asking if you want the app to connect
-to your Reddit account. Click "Allow".
-7. After clicking allow you should then be redirected to a page with your new
+3. The program will then display a URL. Copy this URL, open it in your browser
+and click the "Allow" button.
+4. After clicking allow you should then be redirected to a page with your
 access and refresh tokens. Copy these down as they will be used in the next step.
     * You can verify that the app has been authorised by going to your
     [Reddit account preferences](https://reddit.com/prefs/apps/) and checking the
     "Authorised applications" list
+
+If you have enabled crossposting in your settings but have disabled
+crossposting using the user account, you will then be prompted to run the
+bot-account credential setup. Follow the same steps as above however **make sure
+you are signed into Reddit using the bot account before opening URL in your
+browser**.
+
 
 #### Adding your tokens to the archiver
 
@@ -117,6 +112,20 @@ Replace:
 
 It is also a good idea to replace `/u/YourName` with your Reddit username in
 the `UserAgent` property so Reddit can easily contact you.
+
+If you have enabled crossposting using a bot account, you should also enter
+your app ID, the bot's access token, and the bot's refresh token into the
+"`BotCredentials`" section.
+
+```json
+...
+"BotCredentials": {
+        "AppID": "YourAppID",
+        "AccessToken": "BotAccessToken",
+        "RefreshToken": "BotRefreshToken"
+      }
+...
+```
 
 Save and close the file. If you now run the program it should begin archiving
 your posts to the file `savedPosts.db`. For information on configuring crossposting

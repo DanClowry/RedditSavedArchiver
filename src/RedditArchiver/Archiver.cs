@@ -7,6 +7,7 @@ using RedditArchiver.Services;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace RedditArchiver
@@ -56,12 +57,36 @@ namespace RedditArchiver
                     posts = _userAccount.GetAllSavedPosts();
                 }
             }
-            catch (RedditUnauthorizedException)
+            catch (Exception ex) when (ex is RedditUnauthorizedException || ex is RedditForbiddenException)
             {
-                Console.WriteLine("Got unauthorised response from Reddit when attempting to retrieve saved posts. " +
+                Console.WriteLine("Got unauthorised or forbidden response from Reddit when attempting to retrieve saved posts. " +
                     "Check that the app has been authorised to access your account (reddit.com/prefs/apps/) and " +
                     "that your user credentials in appsettings.json are correct.");
-                Environment.Exit(1);
+
+                bool validInput = false;
+                while (!validInput)
+                {
+                    Console.Write("Run user-account credential setup? (y/n)");
+                    ConsoleKeyInfo key = Console.ReadKey();
+                    Console.WriteLine();
+                    if (key.Key == ConsoleKey.N)
+                    {
+                        Console.WriteLine("Valid account credentials must be supplied to archive saved posts.");
+                        Environment.Exit(1);
+                    }
+                    else if (key.Key == ConsoleKey.Y)
+                    {
+                        validInput = true;
+                        string scope = "identity,history";
+                        if (_settings.Crosspost.UseUserAccount)
+                        {
+                            scope += ",submit,read,flair";
+                        }
+                        await GetAccountCredentials(scope);
+                        Console.WriteLine("Copy and paste these tokens into your appsettings.json UserCredentials.");
+                        Console.WriteLine("Restart the program for the changes to take effect.\n");
+                    }
+                }
             }
             posts.Reverse();
             return posts;
@@ -101,12 +126,60 @@ namespace RedditArchiver
                         Console.WriteLine("Bot account must be a moderator of the crosspost subreddit.");
                     }
                 }
-                catch (RedditUnauthorizedException)
+                catch (Exception ex) when (ex is RedditUnauthorizedException || ex is RedditForbiddenException)
                 {
-                    Console.WriteLine("Got unauthorised response from Reddit when attempting to crosspost. " +
-                    "Check that the app has been authorised to access the bot account (reddit.com/prefs/apps/) and " +
-                    "that the bot credentials in appsettings.json are correct.");
-                    Environment.Exit(1);
+                    Console.WriteLine("Got unauthorised or forbidden response from Reddit when attempting to crosspost.");
+                    bool useUserAccount = _settings.Crosspost.UseUserAccount;
+                    if (useUserAccount)
+                    {
+                        Console.WriteLine("If you have recently changed your settings to crosspost using your main account, " +
+                            "you will need to allow new permissions to your main account.");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Check that the app has been authorised to access the bot account (reddit.com/prefs/apps/) and " +
+                            "that the bot credentials in appsettings.json are correct.");
+                    }
+                    bool validInput = false;
+                    while (!validInput)
+                    {
+                        if (useUserAccount)
+                        {
+                            Console.Write("Rerun user-account credential setup? (y/n)");
+                        }
+                        else
+                        {
+                            Console.Write("Run bot-account credential setup? (y/n)");
+                        }
+                        ConsoleKeyInfo key = Console.ReadKey();
+                        Console.WriteLine();
+                        if (key.Key == ConsoleKey.N)
+                        {
+                            Console.WriteLine("Valid account credentials must be supplied to crosspost saved posts.");
+                            Environment.Exit(1);
+                        }
+                        else if (key.Key == ConsoleKey.Y)
+                        {
+                            validInput = true;
+                            string scope = "identity,submit,read,flair";
+                            if (useUserAccount)
+                            {
+                                scope += ",history";
+                                await GetAccountCredentials(scope);
+                                Console.WriteLine("Copy and paste these tokens into your appsettings.json UserCredentials.");
+                            }
+                            else
+                            {
+                                Console.WriteLine("NOTE: Make sure you are signed into Reddit using the account you want to crosspost from before opening the authorisation URL!");
+                                await GetAccountCredentials(scope);
+                                Console.WriteLine("Copy and paste these tokens into your appsettings.json BotCredentials.");
+                            }
+                            Console.WriteLine("Restart the program for the changes to take effect.");
+                            Console.WriteLine("Press any key to exit...");
+                            Console.ReadKey(true);
+                            Environment.Exit(2);
+                        }
+                    }
                 }
             }
             else
@@ -114,6 +187,31 @@ namespace RedditArchiver
                 await _database.SavePostsAsync(posts, reverse: false);
                 stopwatch.Stop();
                 Console.WriteLine($"\nSaved {posts.Count} posts to the database in {stopwatch.Elapsed.TotalSeconds:N0} seconds");
+            }
+        }
+
+        private async Task GetAccountCredentials(string scope)
+        {
+            using (var waitHandle = new AutoResetEvent(false))
+            {
+                Action<Credentials> callbackAction = delegate (Credentials credentials)
+                {
+                    Console.WriteLine($"Access token: {credentials.AccessToken}");
+                    Console.WriteLine($"Refresh token: {credentials.RefreshToken}");
+                    waitHandle.Set();
+                };
+
+                Console.Write("Enter the App ID you created at reddit.com/prefs/apps/ : ");
+                string appId = Console.ReadLine();
+
+                using (var auth = new OAuthTokenService(scope, appId, callbackAction))
+                {
+                    Console.WriteLine($"Please open the following URL in your browser and click \"Allow\"");
+                    Console.WriteLine(auth.AuthorisationUrl);
+                    waitHandle.WaitOne();
+                    // Wait a bit so the web server can respond with the HTML before it is disposed
+                    await Task.Delay(100);
+                }
             }
         }
     }

@@ -6,7 +6,6 @@ using RedditArchiver.Models;
 using RedditArchiver.Services;
 using System;
 using System.Threading.Tasks;
-using static RedditArchiver.Models.RedditSettings;
 
 namespace RedditArchiver
 {
