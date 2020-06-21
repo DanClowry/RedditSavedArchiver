@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.1.0](https://github.com/DanClowry/RedditSavedArchiver/compare/v1.0.0...v1.1.0) (2020-06-21)
+
+
+### Features
+
+* Add account token retrieval ([76a5927](https://github.com/DanClowry/RedditSavedArchiver/commit/76a59273469cbb690990e82e45a1230154b76009))
+
 ## 1.0.0 (2020-05-23)
 
 
